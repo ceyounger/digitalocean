@@ -1,8 +1,8 @@
 ---
 - hosts: do
   become: true
-  vars_files:
-    - vars/main.yml
+
+- include_vars: "vars/main.yml"
 
   tasks:
     - name: Install Prerequisites
@@ -53,14 +53,14 @@
     - name: Install required system packages
       apt: name={{ sys_packages }} state=latest
 
- # UFW Setup
- #   - name: UFW - Allow SSH connections
- #     ufw:
- #       rule: allow
- #       name: OpenSSH
+  # UFW Setup
+    - name: UFW - Allow SSH connections
+      ufw:
+        rule: allow
+        name: OpenSSH
 
- #   - name: UFW - Deny all other incoming traffic by default
- #     ufw:
- #       state: enabled
- #       policy: deny
- #       direction: incoming
+    - name: UFW - Deny all other incoming traffic by default
+      ufw:
+       state: enabled
+       policy: deny
+       direction: incoming

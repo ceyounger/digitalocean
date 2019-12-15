@@ -3,3 +3,4 @@
   gather_facts: false
   roles: 
     - create_droplet
+    - ubuntu_initial_setup
