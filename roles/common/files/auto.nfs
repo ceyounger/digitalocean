@@ -1,0 +1,4 @@
+backups         -fstype=nfs4,nfsvers=4,rsize=32768,wsize=32768,rw,soft          192.168.52.8:/volume1/backups
+iso             -fstype=nfs4,nfsvers=4,rsize=32768,wsize=32768,rw,soft          192.168.52.8:/volume1/ISO
+docker          -fstype=nfs4,nfsvers=4,rsize=32768,wsize=32768,rw,soft          192.168.52.8:/volume1/docker
+media           -fstype=nfs4,nfsvers=4,rsize=32768,wsize=32768,rw,soft          192.168.52.8:/volume1/media

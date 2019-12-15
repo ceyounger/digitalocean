@@ -1,0 +1,6 @@
+
+---
+# file: roles/common/common.yml
+- import_tasks: roles/common/tasks/autofs.yml
+- import_tasks: roles/common/tasks/ssh-keys.yml
+- import_tasks: roles/common/tasks/sudoers.yml

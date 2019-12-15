@@ -1,0 +1,24 @@
+---
+# file: roles/common/tasks/autofs.yml
+- name: Install AutoFS
+  action: >
+    {{ ansible_pkg_mgr }} name=autofs state=installed update_cache=true
+  tags: autofs
+
+- name: Configure auto.master
+  lineinfile:
+    path: /etc/auto.master
+    regexp: '/nfs'
+    line: '/nfs    /etc/auto.nfs --timeout=60'
+  tags: autofs
+
+- name: Copy auto.nfs to system
+  copy: src=roles/common/files/auto.nfs dest=/etc/auto.nfs
+  tags: autofs
+
+- name: Ensure AutoFS is enabled at boot and start the daemon
+  systemd:
+    name: autofs
+    state: started
+    enabled: yes
+  tags: autofs

@@ -1,0 +1,6 @@
+---
+# file: roles/common/tasks/Debian.yml
+- include_tasks: roles/common/tasks/cockpit-debian.yml
+- include_tasks: roles/common/tasks/nrpe-debian.yml
+- include_tasks: roles/common/tasks/webmin-debian.yml
+- include_tasks: roles/common/tasks/update-debian.yml

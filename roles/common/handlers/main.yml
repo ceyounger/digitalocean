@@ -1,0 +1,25 @@
+---
+# file: roles/common/handlers/main.yml
+- name: Start Cockpit
+  systemd: name=cockpit state=started
+
+- name: Restart Cockpit
+  systemd: name=cockpit state=restarted
+
+- name: Start NRPE on CentOS
+  systemd: name=nrpe enabled=yes state=started
+
+- name: Restart NRPE on CentOS
+  systemd: name=nrpe state=restarted
+
+- name: Start NRPE on Ubuntu
+  systemd: name=nagios-nrpe-server enabled=yes state=started
+
+- name: Restart NRPE on Ubuntu
+  systemd: name=nagios-nrpe-server state=restarted
+
+- name: Start Webmin
+  service: name=webmin state=started
+
+- name: Restart Webmin
+  service: name=webmin state=restarted

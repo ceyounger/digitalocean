@@ -1,0 +1,8 @@
+---
+# file: roles/common/tasks/ssh-keys.yml
+- name: Set up authorized keys
+  authorized_key:
+    user: root
+    state: present
+    key: https://github.com/ceyounger.keys
+  tags: ssh-keys

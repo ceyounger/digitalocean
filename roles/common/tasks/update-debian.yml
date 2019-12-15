@@ -1,0 +1,11 @@
+---
+# file: roles/common/tasks/update-debian.yml
+- name: Install system updates for Ubuntu systems
+  apt:
+    upgrade: dist
+    update_cache: yes
+    cache_valid_time: 3600
+    autoclean: yes
+    autoremove: yes
+  when: ansible_distribution == "Ubuntu"
+  tags: update

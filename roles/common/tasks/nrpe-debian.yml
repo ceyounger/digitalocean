@@ -1,0 +1,60 @@
+---
+# file: roles/common/tasks/nrpe-debian.yml
+- name: Install NRPE and nagios-plugins and start service for Ubuntu
+  apt: name={{ item }} state=present update_cache=yes
+  with_items:
+    - nagios-nrpe-server
+    - nagios-plugins
+  notify: Start NRPE on Ubuntu
+  when: ansible_distribution == "Ubuntu"
+  tags: nrpe
+
+- name: Add Nagios Server to allowed_hosts in nrpe.cfg for Ubuntu
+  lineinfile: dest=/etc/nagios/nrpe.cfg state=present regexp='^allowed_hosts=127\.0\.0\.1' line='allowed_hosts=127.0.0.1,172.16.0.0/12,192.168.250.1,192.168.250.2,104.131.149.146,138.68.47.5'
+  when: ansible_distribution == "Ubuntu"
+  tags: nrpe
+
+- name: Add nrpe.d include dir to nrpe.cfg for Ubuntu
+  lineinfile: dest=/etc/nagios/nrpe.cfg state=present line='include_dir=/etc/nagios/nrpe.d/'
+  when: ansible_distribution == "Ubuntu"
+  tags: nrpe
+  
+- name: Copy custom NRPE commands to nrpe.d for Ubuntu
+  copy: src=roles/common/files/my-ubuntu.cfg dest=/etc/nagios/nrpe.d/ owner=nagios group=nagios mode=0644 backup=yes
+  notify: Restart NRPE on Ubuntu
+  when: ansible_distribution == "Ubuntu"
+  tags: nrpe
+
+- name: Copy check_docker to Nagios Plugin directory for Ubuntu
+  copy: src=roles/common/files/check_docker dest=/usr/lib/nagios/plugins/ owner=nagios group=nagios mode=0755
+  when: ansible_distribution == "Ubuntu"
+  tags: nrpe
+
+- name: Copy check_docker_socket to Nagios Plugin directory for Ubuntu
+  copy: src=roles/common/files/check_docker_socket dest=/usr/lib/nagios/plugins/ owner=nagios group=nagios mode=0755
+  when: ansible_distribution == "Ubuntu"
+  tags: nrpe
+
+- name: Copy check_mem to Nagios Plugin directory for all Ubuntu
+  copy: src=roles/common/files/check_mem dest=/usr/lib/nagios/plugins/ owner=nagios group=nagios mode=0755
+  when: ansible_distribution == "Ubuntu"
+  tags: nrpe
+
+- name: Check state of UFW and register
+  command: "ufw status | grep Status: | sed 's/Status: //g'"
+  register: ufw_state
+  when: ansible_distribution == "Ubuntu"
+  tags: nrpe
+
+- name: Modify UFW
+  ufw: rule=allow port=5666 proto=tcp src={{ item }}
+  with_items:
+    - 192.168.52.0/24
+    - 192.168.250.0/24
+    - 172.16.0.0/12
+  when: 
+    - ansible_distribution =="Ubuntu"
+    - ufw_state == "active"
+  tags: nrpe
+
+- include_tasks: roles/common/tasks/nrpe-common.yml

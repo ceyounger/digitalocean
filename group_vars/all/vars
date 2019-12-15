@@ -1,0 +1,2 @@
+DO_API_TOKEN: "{{ vault_DO_API_TOKEN }}"
+authorized_keys: "{{ vault_authorized_keys }}"

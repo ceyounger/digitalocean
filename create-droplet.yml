@@ -1,0 +1,5 @@
+- name: Create DigitalOcean Droplet
+  hosts: localhost
+  gather_facts: false
+  roles: 
+    - create_droplet

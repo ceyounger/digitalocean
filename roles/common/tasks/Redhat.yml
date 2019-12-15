@@ -1,0 +1,7 @@
+  
+---
+# file: roles/common/tasks/Redhat.yml
+- include_tasks: roles/common/tasks/cockpit-redhat.yml
+- include_tasks: roles/common/tasks/nrpe-redhat.yml
+- include_tasks: roles/common/tasks/webmin-redhat.yml
+- include_tasks: roles/common/tasks/update-redhat.yml

@@ -1,0 +1,13 @@
+---
+# file: roles/common/tasks/nrpe-common.yml
+- name: Install Python-PIP
+  apt: name=python-pip state=present
+  tags: nrpe
+
+- name: PIP Install docker-py
+  pip: name=docker-py
+  tags: nrpe
+
+- name: PIP Install nagiosplugin
+  pip: name=nagiosplugin
+  tags: nrpe

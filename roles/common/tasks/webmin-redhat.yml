@@ -1,0 +1,36 @@
+---
+# file: roles/common/tasks/webmin-redhat.yml
+- name: Add Webmin Repo for CentOS
+  yum_repository:
+    name: webmin
+    description: Webmin Distribution Neutral
+    baseurl: https://download.webmin.com/download/yum
+    mirrorlist: https://download.webmin.com/download/yum/mirrorlist
+    gpgkey: http://www.webmin.com/jcameron-key.asc
+    gpgcheck: yes
+  when: ansible_distribution == "CentOS"
+  tags: webmin
+
+- name: Install Webmin
+  yum: name=webmin state=present update_cache=true
+  notify: Start Webmin
+  tags: webmin
+
+- name: Copy firewalld service entry for CentOS
+  copy: src=roles/common/files/webmin.xml dest=/etc/firewalld/services/ owner=root group=root mode=0644
+  when: ansible_distribution == "CentOS"
+  tags: webmin
+
+- name: Check state of firewalld and register
+  command: /usr/bin/firewall-cmd --state
+  ignore_errors: yes
+  register: firewalld_state
+  when: ansible_distribution == "CentOS"
+  tags: webmin
+
+- name: Modify firewalld for CentOS
+  firewalld: service=webmin zone=public permanent=true immediate=yes state=enabled
+  when: 
+    - ansible_distribution == "CentOS"
+    - firewalld_state == "running"
+  tags: webmin

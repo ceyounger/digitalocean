@@ -1,0 +1,6 @@
+ceyounger       ALL=NOPASSWD: ALL
+nagios          ALL=NOPASSWD: ALL
+nrpe            ALL=NOPASSWD: ALL
+
+Defaults:nrpe !requiretty
+Defaults:nagios !requiretty

@@ -1,0 +1,10 @@
+all:
+  hosts:
+    localhost ansible_connection=local
+  children:
+    digitalocean:
+      hosts:
+        138.68.47.5
+    do_sfo2:
+      hosts:
+        138.68.47.5

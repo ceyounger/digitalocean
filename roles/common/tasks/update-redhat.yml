@@ -1,0 +1,8 @@
+---
+# file: roles/common/tasks/update-redhat.yml
+- name: Install system updates for CentOS systems
+  yum:
+    name: '*'
+    state: latest
+  when: ansible_distribution == "CentOS"
+  tags: update

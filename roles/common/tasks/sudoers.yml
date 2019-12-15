@@ -1,0 +1,13 @@
+---
+# file: roles/common/tasks/sudoers.yml
+- name: Copy custom sudoers to target
+  copy:
+    src: roles/common/files/my-sudoers
+    dest: /etc/sudoers.d/
+    owner: root
+    group: root
+    mode: 0440
+    validate: 'visudo -cf %s'
+    backup: yes
+  become: yes
+  tags: sudoers

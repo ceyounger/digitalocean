@@ -1,0 +1,37 @@
+---
+# file: roles/create_droplet/tasks/main.yml
+
+# Create basic DigitalOcean droplet
+- name: create DigitalOcean droplet
+  digital_ocean_droplet: 
+    oauth_token: "{{ DO_API_TOKEN }}"
+    unique_name: yes
+    region: sfo2
+    image: ubuntu-18-04-x64
+    wait: yes
+    wait_timeout: 500
+    name: mytest01
+    size_id: s-1vcpu-1gb
+    state: present
+    ssh_keys: [ '113055', '26017821', '26017817', '26017805', '26017812', '26017803', '26017837' ]
+    ipv6: yes
+    private_networking: no
+    monitoring: yes
+    backups: no
+  register: mytest01
+
+- name: creae DigitalOcean tag
+  digital_ocean_tag:
+    name: test
+    oauth_token: "{{ DO_API_TOKEN }}"
+    resource_id: "{{ mytest01.data.droplet.id }}"
+    state: present
+  register: tag_response
+
+- name: add hosts
+  add_host:
+    name: "{{ mytest01.data.ip_address }}"
+    groups: "do"
+
+- debug:
+    msg: "ID is {{ mytest01.data.droplet.id }}, IP is {{ mytest01.data.ip_address }}"

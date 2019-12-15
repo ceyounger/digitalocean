@@ -1,0 +1,73 @@
+---
+# file: roles/common/tasks/nrpe-redhat.yml
+- name: Install required software repo for CentOS
+  yum: name=epel-release state=present
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Install NRPE and nagios-plugins and start service for CentOS
+  yum: name={{ item }} state=present
+  with_items: 
+    - nrpe
+    - nagios-plugins
+    - nagios-plugins-all
+  notify: Start NRPE on CentOS
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Add Nagios Server to allowed_hosts in nrpe.cfg for CentOS
+  lineinfile: dest=/etc/nagios/nrpe.cfg state=present regexp='^allowed_hosts=127\.0\.0\.1' line='allowed_hosts=127.0.0.1,172.16.0.0/12,192.168.250.1,192.168.250.2,104.131.149.146,138.68.47.5'
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Add nrpe.d include dir to nrpe.cfg for CentOS
+  lineinfile: dest=/etc/nagios/nrpe.cfg state=present line='include_dir=/etc/nagios/nrpe.d/'
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Copy custom NRPE commands to nrpe.d for CentOS
+  copy: src=roles/common/files/my-centos.cfg dest=/etc/nrpe.d/ owner=nagios group=nagios mode=0644 backup=yes
+  notify: Restart NRPE on CentOS
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Copy check_docker to Nagios Plugin directory for CentOS
+  copy: src=roles/common/files/check_docker dest=/usr/lib64/nagios/plugins/ owner=nagios group=nagios mode=0755
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Copy check_docker_socket to Nagios Plugin directory for CentOS
+  copy: src=roles/common/files/check_docker_socket dest=/usr/lib64/nagios/plugins/ owner=nagios group=nagios mode=0755
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Copy check_yum to Nagios Plugin directory for CentOS
+  copy: src=roles/common/files/check_yum dest=/usr/lib64/nagios/plugins/ owner=nagios group=nagios mode=0755
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Copy check_mem to Nagios Plugin directory for all CentOS
+  copy: src=roles/common/files/check_mem dest=/usr/lib64/nagios/plugins/ owner=nagios group=nagios mode=0755
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Copy firewalld service entry for CentOS
+  copy: src=roles/common/files/nrpe.xml dest=/etc/firewalld/services/ owner=root group=root mode=0644
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Check state of firewalld and register
+  command: /usr/bin/firewall-cmd --state
+  ignore_errors: yes
+  register: firewalld_state
+  when: ansible_distribution == "CentOS"
+  tags: nrpe
+
+- name: Modify firewalld for CentOS
+  firewalld: service=nrpe zone=public permanent=true immediate=yes state=enabled
+  when: 
+    - ansible_distribution == "CentOS"
+    - firewalld_state == "running"
+  tags: nrpe
+
+- include_tasks: roles/common/tasks/nrpe-common.yml

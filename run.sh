@@ -1,0 +1,1 @@
+ansible-playbook --vault-password-file pass-ansible.txt -u root $1.yml $2
