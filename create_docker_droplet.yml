@@ -67,7 +67,7 @@
     copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
     sys_packages: [ 'curl', 'wget', 'vim', 'git', 'firewalld', 'cockpit' ]
     docker_packages: [ 'docker-ce', 'docker-ce-cli', 'containerd.io', 'docker-compose' ]
-    firewalld_pub_svcs: [ 'ssh', 'http', 'https', 'cockpit' ]
+    firewalld_pub_svcs: [ 'ssh', 'http', 'https' ]
     enabled_svcs: [ 'cockpit' ]
 
   tasks: 
@@ -103,7 +103,8 @@
         append: yes
         create_home: yes
         uid: 10000
-        password: "{{ admin_user_pwd }}"
+        shell: /bin/bash
+        password: "{{ admin_user_pwd | password_hash('sha512') }}"
   
 #    - name: Set authorized key for remote user
 #      authorized_key:
@@ -140,19 +141,23 @@
       firewalld:
         zone: internal
         interface: eth1
+        state: enabled
         permanent: yes
 
     - name: Add selected services to firewalld public zone
       firewalld:
         zone: public
-        service: "{{ firewalld_pub_svcs }}"
+        service: "{{ item }}" 
+        state: enabled
         permanent: yes
+      loop: "{{ firewalld_pub_svcs | flatten(1) }}"
 
-    - name: Enable and start selected services
-      systemd:
-        name: "{{ enabled_svcs }}"
-        enabled: yes
-        state: started
+#    - name: Enable and start selected services
+#      systemd:
+#        name: "{{}}" 
+#        enabled: yes
+#        state: started
+#      loop: "{{ enabled_svcs | flatten(1) }}"
 
   # Add Docker Repo cause Ansible is like, "fuck dnf --config-manager"
     - name: Enable Docker Repo

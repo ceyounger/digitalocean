@@ -8,7 +8,7 @@
     do_unique_name: yes
     droplet_name: "{{ my_droplet_name }}"
     do_region: sfo2
-    do_image: centos-8-x64
+    do_image: fedora-31-x64
     do_wait: yes
     do_wait_timeout: 500
     do_size_id: s-1vcpu-1gb
@@ -21,7 +21,7 @@
 
   tasks:
   # Create basic DigitalOcean droplet
-    - name: create DigitalOcean CentOS droplet
+    - name: create DigitalOcean Fedora droplet
       digital_ocean_droplet: 
         name: "{{ droplet_name }}"
         oauth_token: "{{ DO_API_TOKEN }}"
@@ -67,7 +67,7 @@
     copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
     sys_packages: [ 'curl', 'vim', 'git', 'firewalld', 'httpd-tools' ]
     docker_packages: [ 'docker-ce', 'docker-ce-cli', 'containerd.io', 'docker-compose' ]
-    firewalld_pub_svcs: [ 'ssh', 'http', 'https', 'cockpit' ]
+    firewalld_pub_svcs: [ 'ssh', 'http', 'https' ]
     enabled_svcs: [ 'cockpit' ]
 
   tasks: 
@@ -103,7 +103,8 @@
         append: yes
         create_home: yes
         uid: 10000
-        password: "{{ admin_user_pwd }}"
+        shell: /bin/bash
+        password: "{{ admin_user_pwd | password_hash('sha512') }}"
   
 #    - name: Set authorized key for remote user
 #      authorized_key:
@@ -140,16 +141,20 @@
       firewalld:
         zone: internal
         interface: eth1
+        state: enabled
         permanent: yes
 
     - name: Add selected services to firewalld public zone
       firewalld:
         zone: public
-        service: "{{ firewalld_pub_svcs }}"
+        service: "{{ item }}"
+        state: enabled
         permanent: yes
+      loop: "{{ firewalld_pub_svcs | flatten(1) }}"
 
-    - name: Enable and start selected services
-      systemd:
-        name: "{{ enabled_svcs }}"
-        enabled: yes
-        state: started
+#    - name: Enable and start selected services
+#      systemd:
+#        name: "{{ item }}"
+#        enabled: yes
+#        state: started
+#      loop: "{{ enabled_svcs | flatten(1) }}"
