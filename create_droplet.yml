@@ -41,7 +41,7 @@
   
     - name: create DigitalOcean tag
       digital_ocean_tag:
-        name: docker
+        name: ansible_created
         oauth_token: "{{ DO_API_TOKEN }}"
         resource_id: "{{ created_droplet.data.droplet.id }}"
         state: present
