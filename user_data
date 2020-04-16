@@ -1,0 +1,4 @@
+#cloud-config
+# Ensure python is installed
+packages:
+  - python3

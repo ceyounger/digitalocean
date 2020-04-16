@@ -8,7 +8,7 @@
     do_unique_name: yes
     droplet_name: "{{ my_droplet_name }}"
     do_region: sfo2
-    do_image: fedora-31-x64
+    do_image: centos-8-x64
     do_wait: yes
     do_wait_timeout: 500
     do_size_id: s-1vcpu-1gb
@@ -18,10 +18,11 @@
     do_private_networking: yes
     do_monitoring: yes
     do_backups: no
+    do_user_data: "#cloud-config\npackage_upgrade: true\npackages:\n - python3"
 
   tasks:
   # Create basic DigitalOcean droplet
-    - name: create DigitalOcean Fedora droplet
+    - name: create DigitalOcean CentOS droplet
       digital_ocean_droplet: 
         name: "{{ droplet_name }}"
         oauth_token: "{{ DO_API_TOKEN }}"
@@ -37,6 +38,7 @@
         private_networking: "{{ do_private_networking }}"
         monitoring: "{{ do_monitoring }}"
         backups: "{{ do_backups }}"
+        user_data: "{{ do_user_data }}"
       register: created_droplet
   
     - name: create DigitalOcean tag
@@ -63,9 +65,9 @@
   gather_facts: no
 
   vars:
-    ansible_python_interpreter: /usr/bin/python3
+#    ansible_python_interpreter: /usr/bin/python3
     copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
-    sys_packages: [ 'curl', 'vim', 'git', 'firewalld', 'httpd-tools' ]
+    sys_packages: [ 'curl', 'vim', 'git', 'python3', 'firewalld', 'httpd-tools' ]
     docker_packages: [ 'docker-ce', 'docker-ce-cli', 'containerd.io', 'docker-compose' ]
     firewalld_pub_svcs: [ 'ssh', 'http', 'https' ]
     enabled_svcs: [ 'cockpit' ]
