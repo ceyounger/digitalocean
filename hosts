@@ -8,3 +8,8 @@ all:
     do_sfo2:
       hosts:
         138.68.47.5
+    tinc:
+      hosts:
+        util01 vpn_ip=192.168.250.2 ansible_host=138.68.47.5
+    removetinc:
+      hosts:

@@ -1,68 +1,122 @@
 ---
 
 - hosts: just_created
-  gather_facts: false
-  tasks: 
-  - name: Include vars
-    include_vars: 
-      dir: vars
+  remote_user: root
+  gather_facts: no
 
-  - name: Install Prerequisites
-    apt: name=aptitude update_cache=yes state=latest force_apt_get=yes
+  vars:
+#    ansible_python_interpreter: /usr/bin/python3
+    copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+    sys_packages: [ 'apt-transport-https', 'ca-certificates', 'software-properties-common', 'curl', 'vim', 'git' ]
+    docker_packages: [ 'docker-ce', 'docker-ce-cli', 'containerd.io', 'docker-compose' ]
+    firewalld_pub_svcs: [ 'ssh', 'http', 'https' ]
+    enabled_svcs: [ 'cockpit' ]
+    allowed_networks: [ '192.168.250.0/24', '192.168.52.0/24', '192.168.50.0/24' ] 
+
+  tasks: 
+    - name: wait for port 22 to become available
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+      delegate_to: localhost
+
+    - name: gather facts now that host is available
+      setup: 
+
+    - name: Wait for cloud init to finish
+      cloud_init_data_facts:
+        filter: status
+      register: res
+      until: "res.cloud_init_data_facts.status.v1.stage is defined and not res.cloud_init_data_facts.status.v1.stage"
+      retries: 50
+      delay: 5
+
+    - name: Upgrade all packages to the latest version
+      apt:
+        name: "*"
+        state: latest
+      register: apt_1
+      retries: 5
+      until: apt_1 is success
+
+  # Install Packages
+    - name: Install required system packages
+      apt: 
+        name: "{{ item }}"
+        state: latest
+      register: apt_2
+      retries: 5
+      until: apt_2 is success
+      loop: "{{ sys_packages }}"
 
 # Sudo Group Setup
-  - name: Make sure we have a 'wheel' group
-    group:
-      name: wheel
-      state: present
+    - name: Make sure we have a 'wheel' group
+      group:
+        name: wheel
+        state: present
 
-  - name: Allow 'wheel' group to have passwordless sudo
-    lineinfile:
-      path: /etc/sudoers
-      state: present
-      regexp: '^%wheel'
-      line: '%wheel ALL=(ALL) NOPASSWD: ALL'
-      validate: '/usr/sbin/visudo -cf %s'
+    - name: Allow 'wheel' group to have passwordless sudo
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: '/usr/sbin/visudo -cf %s'
 
 # User + Key Setup
-  - name: Create a new regular user with sudo privileges
-    user:
-      name: "{{ create_user }}"
-      state: present
-      groups: wheel
-      append: true
-      create_home: true
-      uid: 10000
-      shell: /bin/bash
+    - name: Create a new regular user with sudo privileges
+      user:
+        name: "{{ admin_user }}"
+        state: present
+        groups: wheel
+        append: true
+        create_home: true
+        uid: 10000
+        shell: /bin/bash
 
-  - name: Set authorized key for remote user
-    authorized_key:
-      user: "{{ create_user }}"
-      state: present
-      key: "{{ copy_local_key }}"
+    - name: Set authorized key for remote user
+      authorized_key:
+        user: "{{ admin_user }}"
+        state: present
+        key: "{{ copy_local_key }}"
 
-  - name: Disable password authentication for root
-    lineinfile:
-      path: /etc/ssh/sshd_config
-      state: present
-      regexp: '^#?PermitRootLogin'
-      line: 'PermitRootLogin prohibit-password'
+    - name: Disable password authentication for root
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        state: present
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin prohibit-password'
 
-# Install Packages
-  - name: Update apt
-    apt: update_cache=yes
+# UFW setup and configuration
+    - name: Set UFW logging
+      ufw:
+        logging: 'on'
+    
+    - name: Allow tinc port (UDP)
+      ufw:
+        rule: allow
+        port: '655'
+        proto: udp
 
-  - name: Install required system packages
-    apt: name={{ sys_packages }} state=latest
+    - name: Allow tinc port (TCP)
+      ufw:
+        rule: allow
+        port: '655'
+        proto: tcp
 
-# UFW Setup
-  - name: UFW - Allow SSH connections
-    ufw:
-      rule: allow
-      name: OpenSSH
+    - name: Allow tinc networks
+      ufw:
+        rule: allow
+        src: "{{ item }}"
+      loop: "{{ allowed_networks | flatten(1) }}"
 
-  - name: UFW - Deny all other incoming traffic by default
-    ufw:
-      state: enabled
-      policy: deny
-      direction: incoming
+    - name: UFW - Allow SSH connections
+      ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: UFW - Deny all other incoming traffic by default
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming

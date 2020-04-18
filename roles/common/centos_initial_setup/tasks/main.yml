@@ -1,0 +1,103 @@
+---
+
+- hosts: just_created
+  remote_user: root
+  gather_facts: no
+
+  vars:
+#    ansible_python_interpreter: /usr/bin/python3
+    copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
+    sys_packages: [ 'curl', 'vim', 'git', 'python3', 'httpd-tools' ]
+    docker_packages: [ 'docker-ce', 'docker-ce-cli', 'containerd.io', 'docker-compose' ]
+    firewalld_pub_svcs: [ 'ssh', 'http', 'https' ]
+    enabled_svcs: [ 'cockpit' ]
+    allowed_networks: [ '192.168.250.0/24', '192.168.52.0/24', '192.168.50.0/24' ] 
+
+  tasks:
+    - name: wait for port 22 to become available
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+      delegate_to: localhost
+
+    - name: gather facts now that host is available
+      setup: 
+
+# Update DNF, update packages, and install selected packages
+  - name: Update dnf
+    dnf: update_cache=yes state=latest
+
+  - name: Upgrade all packages to the latest version
+    dnf:
+      name: "*"
+      state: latest
+
+  - name: Install required system packages
+    dnf: name="{{ sys_packages }}" state=latest
+
+# Sudo Group Setup
+  - name: Make sure we have a 'wheel' group
+    group:
+      name: wheel
+      state: present
+
+  - name: Allow 'wheel' group to have passwordless sudo
+    lineinfile:
+      path: /etc/sudoers
+      state: present
+      regexp: '^%wheel'
+      line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+      validate: '/usr/sbin/visudo -cf %s'
+
+# User + Key Setup
+  - name: Create a new regular user with sudo privileges
+    user:
+      name: "{{ admin_user }}"
+      state: present
+      groups: wheel
+      append: true
+      create_home: true
+      uid: 10000
+      password: "{{ admin_user_pwd | password_hash('sha512') }}"
+      shell: /bin/bash
+
+  - name: Set authorized key for remote user
+    authorized_key:
+      user: "{{ admin_user }}"
+      state: present
+      key: "{{ copy_local_key }}"
+
+  - name: Disable password authentication for root
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      state: present
+      regexp: '^#?PermitRootLogin'
+      line: 'PermitRootLogin prohibit-password'
+
+#    - name: Start Firewalld
+#      systemd:
+#        name: firewalld
+#        enabled: yes
+#        state: started
+
+#    - name: Move Private Network Interface to Internal Zone
+#      firewalld:
+#        zone: internal
+#        interface: eth1
+#        state: enabled
+#        permanent: yes
+
+#    - name: Add selected services to firewalld public zone
+#      firewalld:
+#        zone: public
+#        service: "{{ item }}"
+#        state: enabled
+#        permanent: yes
+#      loop: "{{ firewalld_pub_svcs | flatten(1) }}"
+
+#    - name: Enable and start selected services
+#      systemd:
+#        name: "{{ item }}"
+#        enabled: yes
+#        state: started
+#      loop: "{{ enabled_svcs | flatten(1) }}"

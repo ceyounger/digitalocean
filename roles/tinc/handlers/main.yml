@@ -1,0 +1,11 @@
+---
+
+- name: restart tinc
+  systemd:
+    name: "tinc@{{ tinc_netname }}"
+    state: restarted
+
+- name: reload tinc
+  systemd:
+    name: "tinc@{{ tinc_netname }}"
+    state: reloaded

@@ -1,0 +1,9 @@
+---
+
+- hosts: tinc
+  roles:
+    - tinc
+
+- hosts: removetinc
+  roles:
+    - tinc-remove

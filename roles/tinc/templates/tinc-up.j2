@@ -1,0 +1,6 @@
+#!/bin/sh
+ip link set {{ tinc_interface }} up
+ip addr add {{ vpn_ip }}/{{ tinc_subnet_cidr_netmask }} dev {{ tinc_interface }}
+ip route add {{ tinc_subnet }}/{{ tinc_subnet_cidr_netmask }} dev {{ tinc_interface }}
+ip route add 192.168.52.0/24 dev {{ tinc_interface }}
+ip route add 192.168.50.0/24 dev {{ tinc_interface }}

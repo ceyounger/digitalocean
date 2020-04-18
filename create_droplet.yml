@@ -8,7 +8,7 @@
     do_unique_name: yes
     droplet_name: "{{ my_droplet_name }}"
     do_region: sfo2
-    do_image: centos-8-x64
+    do_image: ubuntu-18-04-x64
     do_wait: yes
     do_wait_timeout: 500
     do_size_id: s-1vcpu-1gb
@@ -18,11 +18,11 @@
     do_private_networking: yes
     do_monitoring: yes
     do_backups: no
-    do_user_data: "#cloud-config\npackage_upgrade: true\npackages:\n - python3"
+    do_user_data: "#cloud-config\npackage_upgrade: true\npackages:\n - aptitude\n - python3"
 
   tasks:
   # Create basic DigitalOcean droplet
-    - name: create DigitalOcean CentOS droplet
+    - name: create DigitalOcean Ubuntu droplet
       digital_ocean_droplet: 
         name: "{{ droplet_name }}"
         oauth_token: "{{ DO_API_TOKEN }}"
@@ -67,10 +67,12 @@
   vars:
 #    ansible_python_interpreter: /usr/bin/python3
     copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
-    sys_packages: [ 'curl', 'vim', 'git', 'python3', 'firewalld', 'httpd-tools' ]
+    sys_packages: [ 'apt-transport-https', 'ca-certificates', 'gnupg-agent', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools', 'curl', 'vim', 'git',  ]
     docker_packages: [ 'docker-ce', 'docker-ce-cli', 'containerd.io', 'docker-compose' ]
-    firewalld_pub_svcs: [ 'ssh', 'http', 'https' ]
+    ufw_pub_tcp_ports: [ '22', '80', '443', '655' ]
+    ufw_pub_udp_ports: [ '655' ]
     enabled_svcs: [ 'cockpit' ]
+    allowed_networks: [ '192.168.250.0/24', '192.168.52.0/24', '192.168.50.0/24' ] 
 
   tasks: 
     - name: wait for port 22 to become available
@@ -79,9 +81,37 @@
         port: 22
       delegate_to: localhost
 
-    - name: gather facts now that host is available
+    - name: Wait for cloud init to finish
+      cloud_init_data_facts:
+        filter: status
+      register: res
+      until: "res.cloud_init_data_facts.status.v1.stage is defined and not res.cloud_init_data_facts.status.v1.stage"
+      retries: 50
+      delay: 5
+
+    - name: Gather facts now that host is available
       setup: 
-  
+
+    - name: Upgrade all packages to the latest version
+      apt:
+        name: "*"
+        state: latest
+      register: apt_1
+      retries: 50
+      delay: 5
+      until: apt_1 is success
+
+  # Install Packages
+    - name: Install required system packages
+      apt: 
+        name: "{{ item }}"
+        state: latest
+      register: apt_2
+      retries: 10
+      delay: 5
+      until: apt_2 is success
+      loop: "{{ sys_packages }}"
+
   # Sudo Group Setup
     - name: Make sure we have a 'wheel' group
       group:
@@ -108,11 +138,11 @@
         shell: /bin/bash
         password: "{{ admin_user_pwd | password_hash('sha512') }}"
   
-#    - name: Set authorized key for remote user
-#      authorized_key:
-#        user: "{{ create_user }}"
-#        state: present
-#        key: "{{ copy_local_key }}"
+    - name: Set authorized key for remote user
+      authorized_key:
+        user: "{{ admin_user }}"
+        state: present
+        key: "{{ copy_local_key }}"
   
     - name: Disable password authentication for root
       lineinfile:
@@ -120,43 +150,84 @@
         state: present
         regexp: '^#?PermitRootLogin'
         line: 'PermitRootLogin prohibit-password'
-  
-  # Update DNF and Install Packages
-    - name: Update dnf
-      dnf: update_cache=yes state=latest
 
-    - name: Upgrade all packages to the latest version
-      dnf:
-        name: "*"
-        state: latest  
+# UFW setup and configuration
+    - name: Set UFW logging
+      ufw:
+        logging: 'on'
+    
+    - name: Allow tinc port (UDP)
+      ufw:
+        rule: allow
+        port: '655'
+        proto: udp
 
-    - name: Install required system packages
-      dnf: name="{{ sys_packages }}" state=latest
+    - name: Allow tinc port (TCP)
+      ufw:
+        rule: allow
+        port: '655'
+        proto: tcp
 
-    - name: Start Firewalld
+    - name: Allow tinc networks
+      ufw:
+        rule: allow
+        src: "{{ item }}"
+      loop: "{{ allowed_networks | flatten(1) }}"
+
+    - name: UFW - Allow SSH connections
+      ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: UFW - Deny all other incoming traffic by default
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+
+# Install tinc and configure
+#    - name: Install tinc
+#      apt:
+#        name: tinc
+#        state: latest
+#      register: apt_3
+#      retries: 5
+#      until: apt_3 is success
+
+#    - name: Create taiusnet directory
+#      file:
+#          path: /etc/tinc/taiusnet
+#          state: directory
+#          mode: '0755'
+
+    - include_role: 
+        name: tinc
+      vars:
+        vpn_ip: 192.168.250.100
+    
+    # Install and configure AutoFS and map NFS to NAS01
+    - name: Install AutoFS
+      apt:
+        name: autofs 
+        state: latest
+      tags: autofs
+
+    - name: Configure auto.master
+      lineinfile:
+        path: /etc/auto.master
+        regexp: '/nfs'
+        line: '/nfs    /etc/auto.nfs --timeout=60'
+      tags: autofs
+
+    - name: Copy auto.nfs to system
+      copy: 
+        src: roles/common/files/auto.nfs 
+        dest: /etc/auto.nfs
+      tags: autofs
+
+    - name: Ensure AutoFS is enabled at boot and start the daemon
       systemd:
-        name: firewalld
-        enabled: yes
+        name: autofs
         state: started
-
-    - name: Move Private Network Interface to Internal Zone
-      firewalld:
-        zone: internal
-        interface: eth1
-        state: enabled
-        permanent: yes
-
-    - name: Add selected services to firewalld public zone
-      firewalld:
-        zone: public
-        service: "{{ item }}"
-        state: enabled
-        permanent: yes
-      loop: "{{ firewalld_pub_svcs | flatten(1) }}"
-
-#    - name: Enable and start selected services
-#      systemd:
-#        name: "{{ item }}"
-#        enabled: yes
-#        state: started
-#      loop: "{{ enabled_svcs | flatten(1) }}"
+        enabled: yes
+      tags: autofs

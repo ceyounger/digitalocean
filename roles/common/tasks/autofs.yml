@@ -13,7 +13,9 @@
   tags: autofs
 
 - name: Copy auto.nfs to system
-  copy: src=roles/common/files/auto.nfs dest=/etc/auto.nfs
+  copy: 
+    src: roles/common/files/auto.nfs 
+    dest: /etc/auto.nfs
   tags: autofs
 
 - name: Ensure AutoFS is enabled at boot and start the daemon
