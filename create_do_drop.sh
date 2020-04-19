@@ -1,0 +1,1 @@
+ansible-playbook --vault-password-file pass-ansible.txt -u root $1.yml -e "my_droplet_image="$2"" -e "my_droplet_size="$3"" -e "my_droplet_name="$4"" 

@@ -1,1 +1,0 @@
-ansible-playbook -vvvv -C -D --vault-password-file pass-ansible.txt -u root $1.yml -e "my_droplet_name="$2""

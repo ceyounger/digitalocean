@@ -8,10 +8,10 @@
     do_unique_name: yes
     droplet_name: "{{ my_droplet_name }}"
     do_region: sfo2
-    do_image: ubuntu-18-04-x64
+    do_image: "{{ my_droplet_image }}"
     do_wait: yes
     do_wait_timeout: 500
-    do_size_id: s-1vcpu-1gb
+    do_size_id: "{{ my_droplet_size }}"
     do_state: present
     do_ssh_keys: [ '113055', '26017821', '26017817', '26017805', '26017812', '26017803', '26017837' ]
     do_ipv6: no
@@ -151,10 +151,6 @@
         line: 'PermitRootLogin prohibit-password'
 
 # UFW setup and configuration
-    - name: Set UFW logging
-      ufw:
-        logging: 'on' 
-    
     - name: Allow UFW ports (TCP)
       ufw:
         rule: allow
@@ -186,14 +182,37 @@
         policy: deny
         direction: incoming
 
-# Install tinc and configure
-    - name: Install tinc
-      apt:
+    - include_role: 
         name: tinc
+      vars:
+        vpn_ip: 192.168.250.100
+
+    # Install and configure AutoFS and map NFS to NAS01
+    - name: Install AutoFS
+      apt:
+        name: autofs 
         state: latest
-      register: apt_3
-      retries: 5
-      until: apt_3 is success
+      tags: autofs
+
+    - name: Configure auto.master
+      lineinfile:
+        path: /etc/auto.master
+        regexp: '/nfs'
+        line: '/nfs    /etc/auto.nfs --timeout=60'
+      tags: autofs
+
+    - name: Copy auto.nfs to system
+      copy: 
+        src: roles/common/files/auto.nfs 
+        dest: /etc/auto.nfs
+      tags: autofs
+
+    - name: Ensure AutoFS is enabled at boot and start the daemon
+      systemd:
+        name: autofs
+        state: started
+        enabled: yes
+      tags: autofs
 
   # Install Docker GPG Key
     - name: Add Docker GPG apt Key
@@ -219,6 +238,21 @@
     - name: Install Docker Module for Python
       pip:
         name: docker
+
+    - name: Create docker network app_main
+      docker_network:
+        name: app_main
+        ipam_config:
+          - subnet: 172.25.0.0/16
+            gateway: 172.25.0.1
+            iprange: 172.25.5.0/24
+
+#    - name: Create docker network app_main_v6
+#      docker_network:
+#        name: app_main_v6
+#        enable_ipv6: yes
+#        ipam_config:
+#          - subnet: fdd1:ac8c:0557:7ce1::/64
 
 #  # Pull default docker image
 #    - name: Pull default Docker image

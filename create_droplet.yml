@@ -8,13 +8,13 @@
     do_unique_name: yes
     droplet_name: "{{ my_droplet_name }}"
     do_region: sfo2
-    do_image: ubuntu-18-04-x64
+    do_image: "{{ my_droplet_image }}"
     do_wait: yes
     do_wait_timeout: 500
-    do_size_id: s-1vcpu-1gb
+    do_size_id: "{{ my_droplet_size }}"
     do_state: present
     do_ssh_keys: [ '113055', '26017821', '26017817', '26017805', '26017812', '26017803', '26017837' ]
-    do_ipv6: no
+    do_ipv6: yes
     do_private_networking: yes
     do_monitoring: yes
     do_backups: no
@@ -152,10 +152,6 @@
         line: 'PermitRootLogin prohibit-password'
 
 # UFW setup and configuration
-    - name: Set UFW logging
-      ufw:
-        logging: 'on'
-    
     - name: Allow tinc port (UDP)
       ufw:
         rule: allow
@@ -184,21 +180,6 @@
         state: enabled
         policy: deny
         direction: incoming
-
-# Install tinc and configure
-#    - name: Install tinc
-#      apt:
-#        name: tinc
-#        state: latest
-#      register: apt_3
-#      retries: 5
-#      until: apt_3 is success
-
-#    - name: Create taiusnet directory
-#      file:
-#          path: /etc/tinc/taiusnet
-#          state: directory
-#          mode: '0755'
 
     - include_role: 
         name: tinc
