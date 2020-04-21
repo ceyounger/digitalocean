@@ -4,12 +4,12 @@ all:
   children:
     digitalocean:
       hosts:
-        138.68.47.5
+        138.197.201.206
     do_sfo2:
       hosts:
-        138.68.47.5
+        138.197.201.206
     tinc:
       hosts:
-        util01 vpn_ip=192.168.250.2 ansible_host=138.68.47.5
+        util01 vpn_ip=192.168.250.2 ansible_host=138.197.201.206
     removetinc:
       hosts:
