@@ -67,7 +67,7 @@
   vars:
 #    ansible_python_interpreter: /usr/bin/python3
     copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
-    sys_packages: [ 'apt-transport-https', 'ca-certificates', 'gnupg-agent', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools', 'curl', 'wget', 'vim', 'git' ]
+    sys_packages: [ 'apt-transport-https', 'ca-certificates', 'gnupg-agent', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools', 'curl', 'wget', 'vim', 'git', 'apache2-utils' ]
     docker_packages: [ 'docker-ce', 'docker-ce-cli', 'containerd.io', 'docker-compose' ]
     ufw_pub_tcp_ports: [ '22', '80', '443', '655' ]
     ufw_pub_udp_ports: [ '655' ]
