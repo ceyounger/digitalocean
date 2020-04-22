@@ -5,11 +5,20 @@ all:
     digitalocean:
       hosts:
         138.197.201.206
+        157.245.168.107
+        206.189.216.233
+        157.245.161.122
     do_sfo2:
       hosts:
         138.197.201.206
+        157.245.168.107
+        206.189.216.233
+        157.245.161.122
     tinc:
       hosts:
         util01 vpn_ip=192.168.250.2 ansible_host=138.197.201.206
+        dswrm01 vpn_ip=192.168.250.21 ansible_host=157.245.168.107
+        dswrm02 vpn_ip=192.168.250.22 ansible_host=206.189.216.233
+        dswrm03 vpn_ip=192.168.250.23 ansible_host=157.245.161.122
     removetinc:
       hosts:
