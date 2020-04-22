@@ -13,8 +13,10 @@ Thumbs.db
 .Spotlight-V100
 .Trashes
 
+
 files/hosts
 roles/common/files
 roles/tinc/files
 
-pass-ansible.txt
+/hosts
+/pass-ansible.txt
