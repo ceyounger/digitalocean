@@ -73,14 +73,6 @@
   notify:
     - restart tinc
 
-- name: ensure subnet ip address for private network is properly set in tinc host file
-  lineinfile:
-    path: "/etc/tinc/{{ tinc_netname }}/hosts/{{ ansible_hostname }}"
-    line: "Subnet = {{ ansible_eth1.ipv4.address }}/32"
-    create: yes
-  notify:
-    - restart tinc
-
 - name: Add options to host file
   lineinfile:
     path: "/etc/tinc/{{ tinc_netname }}/hosts/{{ ansible_hostname }}"
