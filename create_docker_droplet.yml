@@ -239,9 +239,6 @@
       pip:
         name: docker
 
-    - name: Install DOBS docker plugin
-      command: "docker plugin install rexray/dobs DOBS_TOKEN={{ DO_API_TOKEN }} DOBS_REGION={{ do_region }} LINUX_VOLUME_FILEMODE=0775 DOBS_CONVERTUNDERSCORES=true"
-
     - name: Create docker network app_main
       docker_network:
         name: app_main
