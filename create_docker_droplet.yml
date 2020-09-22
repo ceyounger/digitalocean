@@ -22,7 +22,7 @@
 
   tasks:
   # Create basic DigitalOcean droplet
-    - name: create DigitalOcean Ubuntu Docker droplet
+    - name: ubuntu | install | create DigitalOcean Ubuntu Docker droplet
       digital_ocean_droplet: 
         name: "{{ droplet_name }}"
         oauth_token: "{{ DO_API_TOKEN }}"
@@ -41,7 +41,7 @@
         user_data: "{{ do_user_data }}"
       register: created_droplet
   
-    - name: create DigitalOcean tag
+    - name: ubuntu | config | create DigitalOcean tag
       digital_ocean_tag:
         name: docker
         oauth_token: "{{ DO_API_TOKEN }}"
@@ -55,7 +55,7 @@
     - debug:
         msg: "IP is {{ created_droplet.data.ip_address }}" 
 
-    - name: add new droplet to dynamic inventory
+    - name: ubuntu| config | add new droplet to dynamic inventory
       add_host:
         name: "{{ created_droplet.data.ip_address }}"
         groups: do
@@ -65,14 +65,15 @@
   gather_facts: no
 
   vars:
-#    ansible_python_interpreter: /usr/bin/python3
+    ansible_python_interpreter: /usr/bin/python3
     copy_local_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_rsa.pub') }}"
-    sys_packages: [ 'apt-transport-https', 'ca-certificates', 'gnupg-agent', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools', 'curl', 'wget', 'vim', 'git', 'apache2-utils' ]
+    repositories: 'ppa:gluster/glusterfs7'
+    sys_packages: [ 'apt-transport-https', 'ca-certificates', 'gnupg-agent', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools', 'curl', 'wget', 'vim', 'git', 'apache2-utils', 'glusterfs-client' ]
     docker_packages: [ 'docker-ce', 'docker-ce-cli', 'containerd.io', 'docker-compose' ]
-    ufw_pub_tcp_ports: [ '22', '80', '443', '655' ]
-    ufw_pub_udp_ports: [ '655' ]
+    ufw_pub_tcp_ports: [ '22', '50', '80', '443', '655', '2377', '7946' ]
+    ufw_pub_udp_ports: [ '50', '655', '4789', '7946' ]
     enabled_svcs: [ 'cockpit' ]
-    allowed_networks: [ '192.168.250.0/24', '192.168.52.0/24', '192.168.50.0/24' ]
+    allowed_networks: [ '10.138.0.0/16', '192.168.250.0/24', '192.168.52.0/24', '192.168.50.0/24' ]
     default_container_image: "portainer/portainer"
 
   tasks: 
@@ -90,10 +91,31 @@
       retries: 50
       delay: 5
       
-    - name: gather facts now that host is available
+    - name: ubuntu | config | gather facts now that host is available
       setup: 
 
-    - name: Upgrade all packages to the latest version
+    - name: ubuntu | config | modify /etc/hosts
+      blockinfile:
+        path: /etc/hosts
+        block: |
+          10.138.208.253  dswm-m-01.taius.io dswm-m-01
+          10.138.208.251  dswm-m-02.taius.io dswm-m-02
+          10.138.208.254  dswm-m-03.taius.io dswm-m-03
+          10.138.97.235	dswrm01.taius.io dswrm01
+          10.138.132.189	dswrm02.taius.io dswrm02
+          10.138.208.247	dswrm03.taius.io dswrm03
+          10.138.208.248  gluster0.taius.io gluster0
+          10.138.208.249  gluster1.taius.io gluster1
+          10.138.208.250  gluster2.taius.io gluster2
+        backup: yes
+
+    - name: ubuntu | config | adding glusterfs apt repo key
+      apt_key: keyserver=keyserver.ubuntu.com id=F7C73FCC930AC9F83B387A5613E01B7B3FE869A9 state=present
+
+    - name: ubuntu | config | adding glusterfs apt repo
+      apt_repository: repo='deb http://ppa.launchpad.net/gluster/glusterfs-7/ubuntu bionic main' state=present update_cache=yes
+
+    - name: ubuntu | install | Upgrade all packages to the latest version
       apt:
         name: "*"
         state: latest
@@ -102,22 +124,22 @@
       until: apt_1 is success
 
   # Install Packages
-    - name: Install required system packages
+    - name: ubuntu | install | Install required system packages
       apt: 
         name: "{{ item }}"
         state: latest
       register: apt_2
       retries: 5
       until: apt_2 is success
-      loop: "{{ sys_packages }}"
+      loop: "{{ sys_packages | flatten(1) }}"
 
   # Sudo Group Setup
-    - name: Make sure we have a 'wheel' group
+    - name: ubuntu | config | Make sure we have a 'wheel' group
       group:
         name: wheel
         state: present
   
-    - name: Allow 'wheel' group to have passwordless sudo
+    - name: ubuntu | config | Allow 'wheel' group to have passwordless sudo
       lineinfile:
         path: /etc/sudoers
         state: present
@@ -126,7 +148,7 @@
         validate: '/usr/sbin/visudo -cf %s'
   
   # User + Key Setup
-    - name: Create a new regular user with sudo privileges
+    - name: ubuntu | config | Create a new regular user with sudo privileges
       user:
         name: "{{ admin_user }}"
         state: present
@@ -137,13 +159,13 @@
         shell: /bin/bash
         password: "{{ admin_user_pwd | password_hash('sha512') }}"
   
-    - name: Set authorized key for remote user
+    - name: ubuntu | config | Set authorized key for remote user
       authorized_key:
         user: "{{ admin_user }}"
         state: present
         key: "{{ copy_local_key }}"
   
-    - name: Disable password authentication for root
+    - name: ubuntu | config | Disable password authentication for root
       lineinfile:
         path: /etc/ssh/sshd_config
         state: present
@@ -151,32 +173,32 @@
         line: 'PermitRootLogin prohibit-password'
 
 # UFW setup and configuration
-    - name: Allow UFW ports (TCP)
+    - name: ubuntu | config | Allow UFW ports (TCP)
       ufw:
         rule: allow
         port: "{{ item }}"
         proto: tcp
       loop: "{{ ufw_pub_tcp_ports | flatten(1) }}"
 
-    - name: Allow UFW port (UDP)
+    - name: ubuntu | config | Allow UFW port (UDP)
       ufw:
         rule: allow
         port: "{{ item }}"
         proto: tcp
       loop: "{{ ufw_pub_udp_ports | flatten(1) }}"
 
-    - name: Allow tinc networks
+    - name: ubuntu | config | Allow tinc networks
       ufw:
         rule: allow
         src: "{{ item }}"
       loop: "{{ allowed_networks | flatten(1) }}"
 
-    - name: UFW - Allow SSH connections
+    - name: ubuntu | config | UFW - Allow SSH connections
       ufw:
         rule: allow
         name: OpenSSH
 
-    - name: UFW - Deny all other incoming traffic by default
+    - name: ubuntu | config | UFW - Deny all other incoming traffic by default
       ufw:
         state: enabled
         policy: deny
@@ -188,45 +210,53 @@
         vpn_ip: 192.168.250.100
 
     # Install and configure AutoFS and map NFS to NAS01
-    - name: Install AutoFS
+    - name: ubuntu | install | Install AutoFS
       apt:
         name: autofs 
         state: latest
       tags: autofs
 
-    - name: Configure auto.master
+    - name: ubuntu | config | Configure auto.master
       lineinfile:
         path: /etc/auto.master
         regexp: '/nfs'
         line: '/nfs    /etc/auto.nfs --timeout=60'
       tags: autofs
 
-    - name: Copy auto.nfs to system
+    - name: ubuntu | config | Copy auto.nfs to system
       copy: 
         src: roles/common/files/auto.nfs 
         dest: /etc/auto.nfs
       tags: autofs
 
-    - name: Ensure AutoFS is enabled at boot and start the daemon
+    - name: ubuntu | config | Ensure AutoFS is enabled at boot and start the daemon
       systemd:
         name: autofs
         state: started
         enabled: yes
       tags: autofs
 
+    - name: ubuntu | config | Mount GlusterFS Docker volume
+      mount:
+        path: /gfs
+        src: gluster0:/gfs01
+        fstype: glusterfs
+        opts: defaults,_netdev
+        state: mounted
+
   # Install Docker GPG Key
-    - name: Add Docker GPG apt Key
+    - name: ubuntu | config | Add Docker GPG apt Key
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
 
-    - name: Add Docker Repository
+    - name: ubuntu | config | Add Docker Repository
       apt_repository:
         repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
         state: present
 
   # Install Docker Components
-    - name: Install Docker components
+    - name: ubuntu | install | Install Docker components
       apt: 
         name: "{{ item }}" 
         state: latest
@@ -235,17 +265,61 @@
       until: apt_4 is success
       loop: "{{ docker_packages | flatten(1) }}"
 
-    - name: Install Docker Module for Python
+    - name: ubuntu | install | Install Docker Module for Python
       pip:
         name: docker
 
-    - name: Create docker network app_main
-      docker_network:
-        name: app_main
-        ipam_config:
-          - subnet: 172.25.0.0/16
-            gateway: 172.25.0.1
-            iprange: 172.25.5.0/24
+    - name: ubuntu | config | Modify Docker group
+      group:
+        name: docker
+        gid: 20000
+        state: present
+
+    - name: ubuntu | config | Create docker user
+      user:
+        name: docker
+        uid: 20000
+        group: docker
+
+    - name: ubuntu | config | Add admin user to docker group
+      user:
+        name: "{{ admin_user }}"
+        groups: docker
+        append: yes
+
+    - name: ubuntu | config | Create docker GFS mount point
+      file:
+        path: /docker
+        state: directory
+        group: docker
+
+    - name: ubuntu | config | Mount GlusterFS Docker volume
+      mount:
+        path: /docker
+        src: gluster0:/docker
+        fstype: glusterfs
+        opts: defaults,_netdev
+        state: mounted
+
+    - name: ubuntu | config | Prep Telegraf config directory
+      file:
+        path: /etc/telegraf
+        state: directory
+        group: docker
+
+    - name: ubuntu | config | Create telegraf.conf
+      template:
+        src: roles/docker/templates/telegraf.conf.j2
+        dest: /etc/telegraf/telegraf.conf
+        mode: 0775
+
+#    - name: Create docker network app_main
+#      docker_network:
+#        name: app_main
+#        ipam_config:
+#          - subnet: 172.25.0.0/16
+#            gateway: 172.25.0.1
+#            iprange: 172.25.5.0/24
 
 #    - name: Create docker network app_main_v6
 #      docker_network:

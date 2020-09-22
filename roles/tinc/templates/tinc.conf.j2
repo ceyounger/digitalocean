@@ -1,4 +1,4 @@
-Name = {{ ansible_hostname }}
+Name = {{ ansible_hostname | regex_replace('-', '' ) }}
 AddressFamily = ipv4
 Interface = {{ tinc_interface }}
 PMTUDiscovery = yes

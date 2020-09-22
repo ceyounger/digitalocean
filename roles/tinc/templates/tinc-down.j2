@@ -1,6 +1,6 @@
 #!/bin/sh
 ip route del 192.168.52.0/24 dev {{ tinc_interface }}
 ip route del 192.168.50.0/24 dev {{ tinc_interface }}
-ip route del {{ vpn_ip }}/{{ tinc_subnet_cidr_netmask }} dev {{ tinc_interface }}
+ip route del {{ tinc_subnet }}/{{ tinc_subnet_cidr_netmask }} dev {{ tinc_interface }}
 ip addr del {{ vpn_ip }}/{{ tinc_subnet_cidr_netmask }} dev {{ tinc_interface }}
 ip link set {{ tinc_interface }} down
